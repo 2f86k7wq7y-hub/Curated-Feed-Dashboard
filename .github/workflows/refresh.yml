@@ -14,6 +14,9 @@ concurrency:
   group: curated-feed
   cancel-in-progress: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"   # silence Node 20 deprecation warnings
+
 jobs:
   build:
     runs-on: ubuntu-latest

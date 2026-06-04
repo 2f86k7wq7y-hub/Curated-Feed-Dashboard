@@ -67,11 +67,9 @@ code{background:#efece6;padding:1px 5px;border-radius:4px;font-size:12px}
 <details class="settings">
   <summary>Settings &amp; how this goes live</summary>
   <div class="body">
-    <p><b>Right now</b> this is seeded with your existing vault clippings so you can feel the interface.</p>
-    <p><b>To go live:</b> the dashboard runs in a sandbox that can't fetch the web itself. Instead, a scheduled Claude task pulls your <b>RSS.app bundle</b> (all your X accounts + Substacks merged into one feed) and refreshes these cards — daily, or whenever you ask. Paste your bundle URL below so it's saved for that task.</p>
-    <label>RSS.app bundle JSON URL</label>
-    <input id="bundle" placeholder="https://rss.app/feeds/v1.1/_xxxx.json">
-    <p style="margin-top:10px">Reading state and the “NEW” marker are stored locally in this view and persist across reloads.</p>
+    <p>This page rebuilds automatically. A scheduled GitHub Action pulls your 3 X Lists (via RSSHub) plus your Substacks and blogs, accumulates them into a deduped store, and republishes here — no action needed from you.</p>
+    <p>Use the lane tabs to switch topics, the type chips to filter X / Substack / Web, and the search box to find anything. The red <b>NEW</b> badge marks items added since your last visit.</p>
+    <p style="margin-top:10px">Reading state and the “NEW” marker are stored locally on this device and persist across reloads. To add a source, edit <code>feeds.json</code> or add an account to the relevant X List.</p>
   </div>
 </details>
 </div>
@@ -88,13 +86,12 @@ let lane='all', type='all', unreadOnly=false, q='';
 const read=new Set(JSON.parse(localStorage.getItem(LS('read'))||'[]'));
 let lastVisit=+(localStorage.getItem(LS('lastVisit'))||0);
 const idOf=it=>(it.title+'|'+it.source).slice(0,120);
-// assign a stable pseudo-recency for the prototype
-DATA.forEach((it,i)=>{it._id=idOf(it); it._new = lastVisit>0 ? false : i<14;});
-localStorage.setItem(LS('bundle_seenAt'),Date.now());
-localStorage.setItem(LS('lastVisit'),Date.now());
+// mark items added since the last visit as NEW (first visit: last 48h)
+const _now=Date.now();
+const _prev = lastVisit>0 ? lastVisit : (_now - 2*86400000);
+DATA.forEach(it=>{it._id=idOf(it); it._new = (it._ts||0) > _prev;});
+localStorage.setItem(LS('lastVisit'),_now);
 localStorage.setItem(LS('read'),JSON.stringify([...read]));
-document.getElementById('bundle').value=localStorage.getItem(LS('bundle'))||'';
-document.getElementById('bundle').addEventListener('change',e=>localStorage.setItem(LS('bundle'),e.target.value.trim()));
 
 function tabs(){
  const t=document.getElementById('tabs'); t.innerHTML='';
