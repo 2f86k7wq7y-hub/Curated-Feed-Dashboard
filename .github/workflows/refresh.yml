@@ -1,0 +1,68 @@
+name: Refresh Curated Feed
+
+on:
+  schedule:
+    - cron: "0 11 * * *"   # 11:00 UTC daily (~6am ET). Add more lines for more frequent refreshes.
+  workflow_dispatch: {}     # lets you run it manually from the Actions tab
+
+permissions:
+  contents: write           # commit the accumulated data store
+  pages: write              # deploy to GitHub Pages
+  id-token: write
+
+concurrency:
+  group: curated-feed
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      rsshub:
+        image: diygod/rsshub:latest
+        ports:
+          - 1200:1200
+        env:
+          TWITTER_AUTH_TOKEN: ${{ secrets.TWITTER_AUTH_TOKEN }}
+          CACHE_TYPE: memory
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Wait for RSSHub to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:1200/healthz >/dev/null 2>&1 || curl -sf http://localhost:1200/ >/dev/null 2>&1; then
+              echo "RSSHub up"; break
+            fi
+            echo "waiting ($i)"; sleep 3
+          done
+
+      - name: Build feed + dashboard
+        run: node build.mjs
+
+      - name: Commit accumulated store
+        run: |
+          git config user.name "curated-feed-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/feed.json
+          git commit -m "refresh feed store [skip ci]" || echo "no changes"
+          git push || echo "nothing to push"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

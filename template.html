@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curated Feed</title>
+<style>
+:root{color-scheme:light;
+ --bg:#f7f7f5;--card:#ffffff;--ink:#1d1c1a;--mut:#6b6862;--line:#e6e3dd;
+ --health:#2e8b6f;--pd:#9a5cc6;--claude:#c2772f;--other:#7a7a7a;
+ --accent:#1d1c1a;--new:#d6453d;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:18px 18px 60px}
+header h1{font-size:20px;margin:0 0 2px;letter-spacing:-.2px}
+header p{margin:0 0 14px;color:var(--mut);font-size:13px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 13px;font-size:13px;cursor:pointer;color:var(--ink);display:flex;align-items:center;gap:7px}
+.tab .ct{color:var(--mut);font-size:11px}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tab.active .ct{color:#cfcfcf}
+.tab .dot{width:8px;height:8px;border-radius:50%}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.search{flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:14px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 11px;font-size:12px;cursor:pointer;color:var(--mut)}
+.chip.on{background:#efece6;color:var(--ink);border-color:#d8d4cc;font-weight:600}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 11px;font-size:12px;cursor:pointer;color:var(--ink)}
+.btn:hover{background:#f0ede7}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.card{position:relative;background:var(--card);border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:13px 15px;cursor:pointer;transition:.12s;display:flex;flex-direction:column;gap:6px}
+.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.07);transform:translateY(-1px)}
+.card.read{opacity:.5}
+.card .meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--mut);flex-wrap:wrap}
+.badge{font-size:10px;font-weight:700;letter-spacing:.4px;padding:2px 7px;border-radius:5px;background:#efece6;color:#5a564f;text-transform:uppercase}
+.badge.X{background:#e8f0fe;color:#1a55c4}
+.badge.Substack{background:#fdeee6;color:#c5470d}
+.badge.Web{background:#eef3ee;color:#2f7a4f}
+.new{font-size:9px;font-weight:800;color:#fff;background:var(--new);padding:2px 6px;border-radius:5px;letter-spacing:.5px}
+.card h3{margin:0;font-size:14.5px;line-height:1.35;letter-spacing:-.1px}
+.card .desc{font-size:12.5px;color:var(--mut);margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card .foot{display:flex;justify-content:space-between;align-items:center;margin-top:2px;font-size:11px;color:var(--mut)}
+.card .src{font-weight:600;color:#46433d}
+.empty{text-align:center;color:var(--mut);padding:50px 0}
+.settings{margin-top:26px;border-top:1px solid var(--line);padding-top:16px}
+.settings summary{cursor:pointer;font-size:13px;color:var(--mut);font-weight:600}
+.settings .body{margin-top:10px;font-size:13px;color:var(--mut);background:#fbfaf8;border:1px solid var(--line);border-radius:10px;padding:14px}
+.settings input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-top:6px;font-size:13px}
+code{background:#efece6;padding:1px 5px;border-radius:4px;font-size:12px}
+</style></head>
+<body><div class="wrap">
+<header>
+  <h1>Curated Feed</h1>
+  <p id="sub">Your sources, batched in one place — no scrolling required.</p>
+</header>
+<div class="tabs" id="tabs"></div>
+<div class="controls">
+  <input class="search" id="search" placeholder="Search titles & text…">
+  <span class="chip on" data-type="all">All types</span>
+  <span class="chip" data-type="X">X</span>
+  <span class="chip" data-type="Substack">Substack</span>
+  <span class="chip" data-type="Web">Web</span>
+  <button class="btn" id="unreadBtn">Unread only: off</button>
+  <button class="btn" id="markAll">Mark all read</button>
+</div>
+<div class="grid" id="grid"></div>
+<div class="empty" id="empty" style="display:none">Nothing here with these filters.</div>
+
+<details class="settings">
+  <summary>Settings &amp; how this goes live</summary>
+  <div class="body">
+    <p><b>Right now</b> this is seeded with your existing vault clippings so you can feel the interface.</p>
+    <p><b>To go live:</b> the dashboard runs in a sandbox that can't fetch the web itself. Instead, a scheduled Claude task pulls your <b>RSS.app bundle</b> (all your X accounts + Substacks merged into one feed) and refreshes these cards — daily, or whenever you ask. Paste your bundle URL below so it's saved for that task.</p>
+    <label>RSS.app bundle JSON URL</label>
+    <input id="bundle" placeholder="https://rss.app/feeds/v1.1/_xxxx.json">
+    <p style="margin-top:10px">Reading state and the “NEW” marker are stored locally in this view and persist across reloads.</p>
+  </div>
+</details>
+</div>
+
+<script>
+const DATA = __DATA__;
+const LANES=[{k:'all',label:'All',dot:'#1d1c1a'},
+ {k:'health',label:'Health',dot:'var(--health)'},
+ {k:'personal-dev',label:'Personal Development',dot:'var(--pd)'},
+ {k:'claude',label:'Claude & AI',dot:'var(--claude)'}];
+const laneColor={health:'var(--health)','personal-dev':'var(--pd)',claude:'var(--claude)'};
+const LS=k=>'cf_'+k;
+let lane='all', type='all', unreadOnly=false, q='';
+const read=new Set(JSON.parse(localStorage.getItem(LS('read'))||'[]'));
+let lastVisit=+(localStorage.getItem(LS('lastVisit'))||0);
+const idOf=it=>(it.title+'|'+it.source).slice(0,120);
+// assign a stable pseudo-recency for the prototype
+DATA.forEach((it,i)=>{it._id=idOf(it); it._new = lastVisit>0 ? false : i<14;});
+localStorage.setItem(LS('bundle_seenAt'),Date.now());
+localStorage.setItem(LS('lastVisit'),Date.now());
+localStorage.setItem(LS('read'),JSON.stringify([...read]));
+document.getElementById('bundle').value=localStorage.getItem(LS('bundle'))||'';
+document.getElementById('bundle').addEventListener('change',e=>localStorage.setItem(LS('bundle'),e.target.value.trim()));
+
+function tabs(){
+ const t=document.getElementById('tabs'); t.innerHTML='';
+ LANES.forEach(L=>{
+  const n=L.k==='all'?DATA.length:DATA.filter(d=>d.domain===L.k).length;
+  const el=document.createElement('div'); el.className='tab'+(lane===L.k?' active':'');
+  el.innerHTML=(L.k!=='all'?`<span class="dot" style="background:${L.dot}"></span>`:'')+L.label+` <span class="ct">${n}</span>`;
+  el.onclick=()=>{lane=L.k;render()}; t.appendChild(el);
+ });
+}
+function visible(){
+ return DATA.filter(d=>{
+  if(lane!=='all'&&d.domain!==lane)return false;
+  if(type!=='all'&&d.type!==type)return false;
+  if(unreadOnly&&read.has(d._id))return false;
+  if(q){const s=(d.title+' '+d.desc+' '+d.source).toLowerCase(); if(!s.includes(q))return false;}
+  return true;
+ });
+}
+function render(){
+ tabs();
+ const g=document.getElementById('grid'); g.innerHTML='';
+ const items=visible();
+ document.getElementById('empty').style.display=items.length?'none':'block';
+ items.forEach(d=>{
+  const c=document.createElement('div');
+  c.className='card'+(read.has(d._id)?' read':'');
+  c.style.borderLeftColor=laneColor[d.domain]||'var(--other)';
+  const dt=d.published?`· ${d.published}`:'';
+  c.innerHTML=`<div class="meta"><span class="badge ${d.type}">${d.type}</span>${d._new&&!read.has(d._id)?'<span class="new">NEW</span>':''}<span>${dt}</span></div>
+   <h3>${esc(d.title)}</h3>
+   <p class="desc">${esc(d.desc)}</p>
+   <div class="foot"><span class="src">${esc(d.author||hostOf(d.source))}</span><span>open ↗</span></div>`;
+  c.onclick=()=>{read.add(d._id);localStorage.setItem(LS('read'),JSON.stringify([...read]));
+    if(d.source)window.open(d.source,'_blank'); c.classList.add('read');
+    c.querySelector('.new')?.remove();};
+  g.appendChild(c);
+ });
+}
+function hostOf(u){try{return new URL(u).hostname.replace('www.','')}catch{return ''}}
+function esc(s){return (s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
+document.getElementById('search').addEventListener('input',e=>{q=e.target.value.toLowerCase();render()});
+document.querySelectorAll('.chip').forEach(ch=>ch.onclick=()=>{
+ document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+ ch.classList.add('on'); type=ch.dataset.type; render();});
+document.getElementById('unreadBtn').onclick=function(){unreadOnly=!unreadOnly;
+ this.textContent='Unread only: '+(unreadOnly?'on':'off'); render();};
+document.getElementById('markAll').onclick=()=>{visible().forEach(d=>read.add(d._id));
+ localStorage.setItem(LS('read'),JSON.stringify([...read])); render();};
+render();
+</script>
+</body></html>
